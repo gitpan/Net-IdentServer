@@ -1,4 +1,4 @@
-# $Id: IdentServer.pm,v 1.28 2004/12/30 20:30:22 jettero Exp $
+# $Id: IdentServer.pm,v 1.39 2004/12/31 22:04:22 jettero Exp $
 
 package Net::IdentServer;
 
@@ -12,8 +12,8 @@ use Config::IniFiles;
 use base qw(Net::Server::Fork);
 # /choice
 
-our $REVISION = q($Revision: 1.28 $); $REVISION =~ s/[^\.\d]//g; $REVISION =~ s/^1\.//;
-our $VERSION  = "0.21" . $REVISION;
+our $REVISION = q($Revision: 1.39 $); $REVISION =~ s/[^\.\d]//g; $REVISION =~ s/^1\.//;
+our $VERSION  = "0.54";
 
 1;
 
@@ -138,66 +138,46 @@ sub print_response {
 # }}}
 # do_lookup {{{
 sub do_lookup {
-    my ($this, $local_addr, $local_port, $rem_addr, $rem_port) = @_;
+    my $this = shift;
+    my ($local_addr, $local_port, $rem_addr, $rem_port) = @_;
 
     my $translate_addr = sub { my $a = shift; my @a = (); push @a, $1 while $a =~ m/(..)/g; join(".", map(hex($_), reverse @a)) };
     my $translate_port = sub { hex(shift) };
 
-    my $found = -1;
+    my $found = $this->alt_lookup(@_);
 
-    open TCP, "/proc/net/tcp" or die "couldn't open proc/net/tcp for read: $!";
-    while(<TCP>) {
-        # some lunix docs {{{
-        # enum {
-        #   TCP_ESTABLISHED = 1,
-        #   TCP_SYN_SENT,
-        #   TCP_SYN_RECV,
-        #   TCP_FIN_WAIT1,
-        #   TCP_FIN_WAIT2,
-        #   TCP_TIME_WAIT,
-        #   TCP_CLOSE,
-        #   TCP_CLOSE_WAIT,
-        #   TCP_LAST_ACK,
-        #   TCP_LISTEN,
-        #   TCP_CLOSING,   /* now a valid state */
+    if( $found =~ m/^JP:(.+)/ ) {
+        my $name = $1;
 
-        #   TCP_MAX_STATES /* Leave at the end! */
-        # };
+        $this->log(1, "lookup from $rem_addr for $local_port, $rem_port: alt string found $name");
+        $this->print_response($local_port, $rem_port, "UNIX", $name);
 
-        # /proc/net/tcp
-        #        Holds  a  dump  of the TCP socket table. Much of the information is not of use apart from debugging. The
-        #        "sl" value is the kernel hash slot for the socket, the "local address" is the  local  address  and  port
-        #        number  pair.   The  "remote address" is the remote address and port number pair (if connected). 'St' is
-        #        the internal status of the socket.  The 'tx_queue' and 'rx_queue' are the  outgoing  and  incoming  data
-        #        queue  in terms of kernel memory usage.  The "tr", "tm->when", and "rexmits" fields hold internal infor-
-        #        mation of the kernel socket state and are only useful for debugging. The uid  field  holds  the  creator
-        #        euid of the socket.
+        return;
+    }
 
-        # 9:  E621A8C0:8030 42A3E342:0016 01 00000000:00000000 02:00053467 00000000  1000        0 8070 2 d548ac00 262 40 30 2 2                             
-        # }}}
+    if( $found < 0 ) {
+        open TCP, "/proc/net/tcp" or die "couldn't open proc/net/tcp for read: $!";
+        while(<TCP>) {
+            if( m/^\s+\d+:\s+([A-F0-9]{8}):([A-F0-9]{4})\s+([A-F0-9]{8}):([A-F0-9]{4})\s+(\d+)\s+\S+\s+\S+\s+\S+\s+(\d+)/ ) {
+                my ($la, $lp, $ra, $rp, $state, $uid) = ($1, $2, $3, $4, $5, $6);
 
-        if( m/^\s+\d+:\s+([A-F0-9]{8}):([A-F0-9]{4})\s+([A-F0-9]{8}):([A-F0-9]{4})\s+(\d+)\s+\S+\s+\S+\s+\S+\s+(\d+)/ ) {
-            my ($la, $lp, $ra, $rp, $state, $uid) = ($1, $2, $3, $4, $5, $6);
+                if( $state == 1 ) {
+                    $la = $translate_addr->($la); $lp = $translate_port->($lp);
+                    $ra = $translate_addr->($ra); $rp = $translate_port->($rp);
 
-            if( $state == 1 ) {
-                $la = $translate_addr->($la); $lp = $translate_port->($lp);
-                $ra = $translate_addr->($ra); $rp = $translate_port->($rp);
-
-                # wow, mistake... we are NOT comparing addrs, just ports
-                # if( $local_addr eq $la and $local_port eq $lp and $rem_addr eq $ra and $rem_port eq $rp ) {
-
-                if( $local_port eq $lp and $rem_port eq $rp ) {
-                    $found = $uid;
-                    last;
+                    if( $local_port eq $lp and $rem_port eq $rp ) {
+                        $found = $uid;
+                        last;
+                    }
                 }
             }
         }
+        close TCP;
     }
-    close TCP;
 
     if( $found < 0 ) {
-        $this->log(2, "lookup from $rem_addr for $local_port, $rem_port: not found");
-        $this->print_error($local_port, $rem_port, 'n'); # no user for when we find no sockets!
+        $this->not_found(@_);
+
         return;
     }
 
@@ -215,6 +195,20 @@ sub do_lookup {
     $this->print_response($local_port, $rem_port, "UNIX", $name);
 
     return 1;
+}
+# }}}
+# not_found {{{
+sub not_found {
+    my $this = shift;
+    my ($local_addr, $local_port, $rem_addr, $rem_port) = @_;
+
+    $this->log(2, "lookup from $rem_addr for $local_port, $rem_port: not found");
+    $this->print_error($local_port, $rem_port, 'n'); # no user for when we find no sockets!
+}
+# }}}
+# alt_lookup {{{
+sub alt_lookup {
+    return -1;
 }
 # }}}
 
@@ -245,7 +239,7 @@ sub process_request {
         # on timeout, ident just closes the connection ...
 
     } elsif( $@ ) {
-        $this->log(3, "ERROR during eval { }: $@");
+        $this->log(3, "ERROR during main do_lookup() call: $@");
 
     }
 }
@@ -260,22 +254,22 @@ Net::IdentServer - An rfc 1413 Ident server which @ISA [is a] Net::Server.
 
 =head1 SYNOPSIS
 
-  use Net::IdentServer;
+use Net::IdentServer;
 
-  my $nis = new Net::IdentServer;
+my $nis = new Net::IdentServer;
 
-  run $nis;  # This is a working identd ...
+run $nis;  # This is a working identd ...
 
 =head1 DESCRIPTION
 
-  Although you can run this as you see in the SYNOPSIS, you'll
-  probably want to rewrite a few things.
+Although you can run this as you see in the SYNOPSIS, you'll
+probably want to rewrite a few things.
 
-  Net::IdentServer is a child of Net::Server to be sure.  If you
-  wish to override the behaviours of this module, just inherit it
-  and start re-writing as you go.  
-  
-  An example random fifteen-letter-word ident server follows:
+Net::IdentServer is a child of Net::Server to be sure.  If
+you wish to override the behaviours of this module, just
+inherit it and start re-writing as you go.  
+
+An example random fifteen-letter-word ident server follows:
 
     use strict;
 
@@ -327,107 +321,119 @@ Net::IdentServer - An rfc 1413 Ident server which @ISA [is a] Net::Server.
         $this->SUPER::print_response( $local, $remote, $type, $info );
     }
 
-=head1 The do_lookup Function
+=head1 Overridable Functions
 
-    I'm including this meaty function in it's entirity, because this is 
-    what you'd have to re-write to do your own do_lookup.  It should be 
-    pretty clear.
+=head2 print_response
 
-    If you're really mad about his documentation, shoot me an email and 
-    I WILL try to help.
+See the DESCRIPTION for an actual example.  This is the
+function that prints the reponse to the client.  As
+arguments, it receives $local port, $remote port, result
+$type and the extended $info (usually a username or error).
 
-    sub do_lookup {
-        my ($this, $local_addr, $local_port, $rem_addr, $rem_port) = @_;
+=head2 alt_lookup
 
-        my $translate_addr = sub { my $a = shift; my @a = (); push @a, 
-            $1 while $a =~ m/(..)/g; join(".", map(hex($_), reverse @a)) };
-        my $translate_port = sub { hex(shift) };
+There exists a function that receives $local_addr,
+$local_port, $rem_addr, and $rem_port as arguments.
+Confusingly, the $local_addr and $rem_addr refer to the
+present socket connection, and the $local_port and $rem_port
+refer to the ports being queried.
 
-        my $found = -1;
+You can do whatever lookups you like on this data and return
+a $uid.  If you return a negative $uid, do_lookup will
+perform the standard lookup.
 
-        open TCP, "/proc/net/tcp" or die "couldn't open proc/net/tcp for read: $!";
-        while(<TCP>) {
+The default alt_lookup just returns a -1.
 
-            # If you know of a better way to read /proc/net/tcp, drop me a line...
-            # because this sorta sucks
-            if( m/^\s+\d+:\s+([A-F0-9]{8}):([A-F0-9]{4})\s+([A-F0-9]{8}):([A-F0-9]{4})\s+(\d+)\s+\S+\s+\S+\s+\S+\s+(\d+)/ ) {
-                j
-                my ($la, $lp, $ra, $rp, $state, $uid) = ($1, $2, $3, $4, $5, $6);
+Lastly, if you return a string that matches m/^JP:(.+)/,
+then $1 will be printed as the username.
 
-                if( $state == 1 ) {
-                    $la = $translate_addr->($la); $lp = $translate_port->($lp);
-                    $ra = $translate_addr->($ra); $rp = $translate_port->($rp);
+Example:
 
-                    # wow, mistake... we are NOT comparing addrs, just ports
-                    # if( $local_addr eq $la and $local_port eq $lp and $rem_addr eq $ra and $rem_port eq $rp ) {
+    sub alt_lookup() {
+        my $this = shift;
 
-                    if( $local_port eq $lp and $rem_port eq $rp ) {
-                        $found = $uid;
-                        last;
-                    }
-                }
-            }
-        }
-        close TCP;
+        # You could use this _instead_ of the
+        # print_response() in the DESCRIPTION section.  The
+        # advantage of the print_response is that it only
+        # returns a "username" when the queried connection
+        # actually exists.
 
-        if( $found < 0 ) {
-            $this->log(2, "lookup from $rem_addr for $local_port, $rem_port: not found");
-            $this->print_error($local_port, $rem_port, 'n'); # no user for when we find no sockets!
-
-            return;
-        }
-
-        my $name = getpwuid( $found );
-        unless( $name =~ m/\w/ ) {
-            # This can happen if a deleted user has a socket open.  'u' might be a better choice. 
-            # I happen to think hidden user is a nice choice here.  
-
-            $this->log(2, "lookup from $rem_addr for $local_port, $rem_port: found uid, but no pwent");
-            $this->print_error($local_port, $rem_port, 'h'); 
-
-            return;
-        }
-
-        $this->log(1, "lookup from $rem_addr for $local_port, $rem_port: found $name");
-        $this->print_response($local_port, $rem_port, "UNIX", $name);
-
-        return 1;
+        return "JP: " . $this->choice;
     }
+
+=head2 not_found
+
+not_found receives as arguments [see alt_lookup for
+description]: $local_addr, $local_port, $rem_addr, $rem_port
+
+by default it logs a level 2 not found message and then
+prints the NO-USER error message
+
+[for more info on the log() see the Net::Server docs]
+
+The idea here is that you can do an additional lookup of the
+standard TCP lookup fails.  For instance, you could do a lookup 
+on a NAT'd machine in the local net.
+
+=head1 print_error
+
+There are only a couple choices of error messages in rfc1413
+
+    $this->print_error($local_port, $rem_port, 'u'); # UNKNOWN-ERROR
+    $this->print_error($local_port, $rem_port, 'h'); # HIDDEN-USER
+    $this->print_error($local_port, $rem_port, 'n'); # NO-USER
+    $this->print_error($local_port, $rem_port, 'i'); # INVALID-PORT
+
+You could, of course, write your own by overriding this
+function entirely.  But otherwise picking something besides
+the four examples shown will earn you an error and an
+exit(1).
+
+=head1 $this->{conf}
+
+The entire ini file is stored in your server object.  Each section is 
+it's own hash key and each value is a key of the section.
+
+Example:  $this->{conf}{server}{port} 
+
+This is the port listed under the server section of your ini file.
 
 =head1 AUTHOR
 
 Jettero Heller <japh@voltar-confed.org>
 
-   Jet is using this software in his own projects...  If you find
-   bugs, please please please let him know. :)
+Jet is using this software in his own projects...  If you find
+bugs, please please please let him know. :) Actually, let him
+know if you find it handy at all.  Half the fun of releasing this
+stuff is knowing that people use it.
 
-   Actually, let him know if you find it handy at all.  Half the
-   fun of releasing this stuff is knowing that people use it.
+Additionally, he is aware that the documentation sucks.  Should
+you email him for help, he will most likely try to give it.
 
 =head1 COPYRIGHT
 
-    GPL!  I included a gpl.txt for your reading enjoyment.
+GPL!  I included a gpl.txt for your reading enjoyment.
 
-    Though, additionally, I will say that I'll be tickled if you
-    were to include this package in any commercial endeavor.
-    Also, any thoughts to the effect that using this module will
-    somehow make your commercial package GPL should be washed
-    away.
+Though, additionally, I will say that I'll be tickled if you
+were to include this package in any commercial endeavor.
+Also, any thoughts to the effect that using this module will
+somehow make your commercial package GPL should be washed
+away.
 
-    I hereby release you from any such silly conditions.
+I hereby release you from any such silly conditions.
 
-    This package and any modifications you make to it must remain
-    GPL.  Any programs you (or your company) write shall remain
-    yours (and under whatever copyright you choose) even if you
-    use this package's intended and/or exported interfaces in
-    them.
+This package and any modifications you make to it must
+remain GPL.  Any programs you (or your company) write shall
+remain yours (and under whatever copyright you choose) even
+if you use this package's intended and/or exported
+interfaces in them.
 
 =head1 SPECIAL THANKS
 
-    Holy smokes, Net::Server is the shizzo fo shizzo.  Everyone
-    send a blessing to this guy, seriously.
+Holy smokes, Net::Server is the shizzo fo shizzo.  Everyone
+send a blessing to this guy, seriously.
 
-    Paul T. Seamons <paul at seamons.com>
+Paul T. Seamons <paul at seamons.com>
 
 =head1 SEE ALSO
 

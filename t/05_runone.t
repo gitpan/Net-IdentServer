@@ -17,6 +17,22 @@ use base qw(Net::IdentServer);
 
 1;
 
+sub alt_lookup {
+    open OUT, ">alttest.file" or die "alttestfile open: $!";
+    close OUT;
+
+    return -1;
+}
+
+sub not_found {
+    my $this = shift;
+
+    open OUT, ">nftest.file" or die "nftestfile open: $!";
+    close OUT;
+
+    $this->SUPER::not_found(@_);
+}
+
 sub do_lookup {
     my $this = shift;
 
