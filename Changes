@@ -1,3 +1,6 @@
+0.55:  Fri Dec 31 17:26:42 EST 2004
+   - jettero found out the identd is supposed to stay open after a lookup
+
 0.54:  Fri Dec 31 15:00:05 EST 2004
    - jettero made the documentation about a hundred times better
 

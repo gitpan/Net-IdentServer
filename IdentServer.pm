@@ -1,4 +1,4 @@
-# $Id: IdentServer.pm,v 1.39 2004/12/31 22:04:22 jettero Exp $
+# $Id: IdentServer.pm,v 1.40 2004/12/31 22:26:42 jettero Exp $
 
 package Net::IdentServer;
 
@@ -12,8 +12,8 @@ use Config::IniFiles;
 use base qw(Net::Server::Fork);
 # /choice
 
-our $REVISION = q($Revision: 1.39 $); $REVISION =~ s/[^\.\d]//g; $REVISION =~ s/^1\.//;
-our $VERSION  = "0.54";
+our $REVISION = q($Revision: 1.40 $); $REVISION =~ s/[^\.\d]//g; $REVISION =~ s/^1\.//;
+our $VERSION  = "0.55";
 
 1;
 
@@ -219,18 +219,19 @@ sub process_request {
     my $master_alarm = alarm ($this->{conf}{server}{timeout}>0 ? $this->{conf}{server}{timeout} : 10);
     local $SIG{ALRM} = sub { die "\n" };
     eval {
-        my $input = <STDIN>;
+        while( my $input = <STDIN> ) {
            $input = "" unless $input; # to deal with stupid undef warning
            $input =~ s/[\r\n]//sg;
 
-        unless( $input =~ m/^\s*(\d+)\s*,\s*(\d+)\s*$/ ) {
-            $this->log(3, "Malformated request from $this->{server}{peeraddr}");
-            $this->print_error("u");
-            return;
-        }
-        my ($s, $c) = ($1, $2);
+            unless( $input =~ m/^\s*(\d+)\s*,\s*(\d+)\s*$/ ) {
+                $this->log(3, "Malformated request from $this->{server}{peeraddr}");
+                $this->print_error("u");
+                return;
+            }
+            my ($s, $c) = ($1, $2);
 
-        $this->do_lookup($this->{server}{sockaddr}, $s, $this->{server}{peeraddr}, $c);
+            $this->do_lookup($this->{server}{sockaddr}, $s, $this->{server}{peeraddr}, $c);
+        }
     };
     alarm $master_alarm;
 
@@ -239,7 +240,7 @@ sub process_request {
         # on timeout, ident just closes the connection ...
 
     } elsif( $@ ) {
-        $this->log(3, "ERROR during main do_lookup() call: $@");
+        $this->log(3, "ERROR during main while() { do_lookup() } eval: $@");
 
     }
 }
