@@ -1,0 +1,13 @@
+Changes
+IdentServer.pm
+MANIFEST
+Makefile.PL
+README
+META.yml                                 Module meta-data (added by MakeMaker)
+gpl.txt
+t/01_load.t
+rfc1413.txt
+identserver.ini
+t/05_runone.t
+t/10_error_test.t
+t/15_success.t
