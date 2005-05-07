@@ -1,4 +1,4 @@
-# $Id: IdentServer.pm,v 1.40 2004/12/31 22:26:42 jettero Exp $
+# $Id: IdentServer.pm,v 1.42 2005/05/07 18:05:13 jettero Exp $
 
 package Net::IdentServer;
 
@@ -12,8 +12,8 @@ use Config::IniFiles;
 use base qw(Net::Server::Fork);
 # /choice
 
-our $REVISION = q($Revision: 1.40 $); $REVISION =~ s/[^\.\d]//g; $REVISION =~ s/^1\.//;
-our $VERSION  = "0.55";
+our $REVISION = q($Revision: 1.42 $); $REVISION =~ s/[^\.\d]//g; $REVISION =~ s/^1\.//;
+our $VERSION  = "0.56";
 
 1;
 
@@ -131,9 +131,11 @@ sub print_error {
 # }}}
 # print_response {{{
 sub print_response {
-    my ($this, $port_on_server, $port_on_client, $res_type, $add_info) = @_;
+    my ($this, $port_on_server, $port_on_client, $os_name, $add_info) = @_;
 
-    printf '%d , %d : %s : %s'."\r\n", $port_on_server, $port_on_client, $res_type, $add_info;
+    $os_name = "USERID : $os_name" unless $os_name eq "ERROR";
+
+    printf '%d , %d : %s : %s'."\r\n", $port_on_server, $port_on_client, $os_name, $add_info;
 }
 # }}}
 # do_lookup {{{
@@ -326,10 +328,10 @@ An example random fifteen-letter-word ident server follows:
 
 =head2 print_response
 
-See the DESCRIPTION for an actual example.  This is the
-function that prints the reponse to the client.  As
-arguments, it receives $local port, $remote port, result
-$type and the extended $info (usually a username or error).
+See the DESCRIPTION for an actual example.  This is the function that
+prints the reponse to the client.  As arguments, it receives $local port,
+$remote port, result $os_name (in caps) and the extended $info (usually a
+username or error).
 
 =head2 alt_lookup
 

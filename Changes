@@ -1,3 +1,6 @@
+0.56:  Sat May  7 14:00:31 EDT 2005
+   - jettero fixed a STUPID bug in print_response (aka USERID)
+
 0.55:  Fri Dec 31 17:26:42 EST 2004
    - jettero found out the identd is supposed to stay open after a lookup
 
