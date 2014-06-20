@@ -1,13 +1,22 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         Net-IdentServer
-version:      0.56
-version_from: IdentServer.pm
-installdirs:  site
+---
+abstract: unknown
+author:
+  - 'Paul Miller <jettero@cpan.org>'
+build_requires:
+  ExtUtils::MakeMaker: '0'
+configure_requires:
+  ExtUtils::MakeMaker: '0'
+dynamic_config: 1
+generated_by: 'ExtUtils::MakeMaker version 6.98, CPAN::Meta::Converter version 2.140640'
+license: unknown
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: '1.4'
+name: Net-IdentServer
+no_index:
+  directory:
+    - t
+    - inc
 requires:
-    Config::IniFiles:              2.3
-    Net::Server::Fork:             0.8
-    Net::Telnet:                   0
-
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.17
+  Net::Server: '0'
+version: '0.601'

@@ -1,25 +1,48 @@
 
 use strict;
 use Test;
-use Net::Telnet;
+use IO::Socket::INET;
+use Net::IdentServer;
 
-my $result;
-alarm 20;
+my $kpid = fork;
+die "no fork: $!" unless defined $kpid;
 
-plan tests => 1;
+unless( $kpid ) {
+    alarm 30;
+    $SIG{ALRM} = sub { exit 0 };
+    $SIG{TERM} = sub { warn "child exit\n"; };
+    close STDERR;
+    Net::IdentServer->new->run( log_file=>"debug.log", log_level=>4, port=>64999 );
+    exit 0;
+}
 
-my $t = new Net::Telnet(port=>64999);
+sleep 2;
 
-$t->open("localhost");
+$SIG{__DIE__} = sub { kill 15, $kpid; exit 1 };
+$SIG{ALRM} = sub { die "SIGALRM\n" };
+alarm 30;
 
-# tcp        0      0 127.0.0.1:38898         127.0.0.1:64999         ESTABLISHED 4941/perl5.8.4      
-my $line = `netstat -np 2>/dev/null | grep ^tcp | grep EST | grep 64999 | grep perl | tail -n 1`; chomp $line;
+plan tests => 2;
 
-if( $line =~ m/\:(\d+).*?\:(\d+)/ ) {
-    my ($l, $r) = ($1, $2);
-    $t->print("$l, $r");
-    ($result) = $t->waitfor("/USERID : UNIX :/");
-    ok( $result , "$l , $r : ");
+my $peerport = 64999;
+my $open_socket = IO::Socket::INET->new( "localhost:$peerport" );
+my $sockport = $open_socket->sockport;
+
+if( my $user = $ENV{USER} ) {
+    ok( do_one( "$sockport , $peerport" ), qr($sockport , $peerport : USERID : UNIX : $user) );
+
 } else {
-    skip( "netstat failed to run or something, skipping the test because it's probably not Net::IdentServer that failed" );
+    ok( do_one( "$sockport , $peerport" ), qr($sockport , $peerport : USERID) );
+}
+
+ok( do_one( "$peerport , $sockport" ), qr($peerport , $sockport : ERROR : NO-USER) );
+
+sub do_one {
+    $\ = "\x0d\x0a";
+
+    my $t = IO::Socket::INET->new( 'localhost:64999' );
+
+    my $msg = shift;
+    print $t $msg;
+    return scalar <$t>;
 }

@@ -3,11 +3,10 @@
 use ExtUtils::MakeMaker;
 
 WriteMakefile(
-    'NAME'	     	=> 'Net::IdentServer',
-    'VERSION_FROM'	=> 'IdentServer.pm',
-    'PREREQ_PM'     => { 
-        'Config::IniFiles'   => 2.3,
-        'Net::Server::Fork'  => 0.8,
-        'Net::Telnet'        => 0,
+    NAME         => 'Net::IdentServer',
+    VERSION_FROM => 'IdentServer.pm',
+    AUTHOR       => 'Paul Miller <jettero@cpan.org>',
+    PREREQ_PM    => { 
+        'Net::Server' => 0,
     },
 );

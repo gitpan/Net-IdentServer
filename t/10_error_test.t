@@ -1,21 +1,38 @@
 
 use strict;
 use Test;
-use Net::Telnet;
+use IO::Socket::INET;
+use Net::IdentServer;
 
-my $result;
-alarm 20;
+my $kpid = fork;
+die "no fork: $!" unless defined $kpid;
+
+unless( $kpid ) {
+    alarm 30;
+    $SIG{ALRM} = sub { exit 0 };
+    $SIG{TERM} = sub { warn "child exit\n"; };
+    close STDERR;
+    Net::IdentServer->new->run( log_file=>"debug.log", log_level=>4, port=>64999 );
+    exit 0;
+}
+
+sleep 2;
+
+$SIG{__DIE__} = sub { kill 15, $kpid; exit 1 };
+$SIG{ALRM} = sub { die "SIGALRM\n" };
+alarm 30;
 
 plan tests => 2;
 
-my $t = new Net::Telnet(port=>64999);
+ok( do_one( "supz" ), qr(0 , 0 : ERROR : UNKNOWN-ERROR) );
+ok( do_one( "7, 7" ), qr(7 , 7 : ERROR : NO-USER) );
 
-$t->open("localhost");
-$t->print("supz");
-($result) = $t->waitfor("/UNKNOWN-ERROR/");
-ok( $result , "0 , 0 : ERROR : " );
+sub do_one {
+    $\ = "\x0d\x0a";
 
-$t->open("localhost");
-$t->print("7, 7");
-($result) = $t->waitfor("/NO-USER/");
-ok( $result , "7 , 7 : ERROR : " );
+    my $t = IO::Socket::INET->new( 'localhost:64999' );
+
+    my $msg = shift;
+    print $t $msg;
+    return scalar <$t>;
+}
