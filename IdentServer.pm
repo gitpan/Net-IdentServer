@@ -7,7 +7,7 @@ use POSIX;
 use Carp;
 use base qw(Net::Server::Fork);
 
-our $VERSION  = "0.601";
+our $VERSION  = "0.603";
 
 1;
 
@@ -233,7 +233,7 @@ An example random fifteen-letter-word ident server follows:
 
 =head2 print_response
 
-See the L<DESCRIPTION> for an actual example.  This is the function that prints
+See the L</DESCRIPTION> for an actual example.  This is the function that prints
 the reponse to the client.  As arguments, it receives $local port, $remote
 port, result $os_name (in caps) and the extended $info (usually a username or
 error).
@@ -327,8 +327,9 @@ like.)
 =head1 SEE ALSO
 
 Consider using L<POE::Component::Server::Ident>. I haven't personally checked
-it out, but BINGOS wrote it so it's probably a better choice than this.
+it out, but L<BINGOS|http://search.cpan.org/~bingos/> wrote it so it's probably
+a better choice than this.
 
-perl(1), L<Net::Server>, L<http://www.ietf.org/rfc/rfc1413.txt>
+perl(1), L<Net::Server>, L<RFC 1413|http://www.ietf.org/rfc/rfc1413.txt>
 
 =cut

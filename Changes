@@ -1,41 +1,21 @@
+0.603: Sun Jun 22 2014
+   - I thought BSD had a /proc/net/tcp ; but now that I think about
+     it.  it doesn't.  There's probably a great cross platform way
+     to look this stuff up, but I don't know it.  This is an easy
+     fix for now.
+
+0.602: Fri Jun 20 2014
+   - there's enough docbugs to increment this thing again.
+
 0.601: Fri Jun 20 2014
-   - just noticed I was going to use Net::IP, but didn't actually do it...
+   - just noticed I was going to use Net::IP, but didn't actually do
+     it...
    - (and didn't put it in the Makefile.PL)
 
 0.60: Fri Jun 20 2014
-   - trying to resurrect this … maybe I should just use BINGOS’ POE server
+   - trying to resurrect this … maybe I should just use BINGOS’ POE
+     server
    - redid the tests
    - fixed up some strange old codes
-   - removed the strange config reader and re-exposed new() from Net::Server
-
-0.56: Fri Jun 20 2014
-
-0.56:  Sat May  7 14:00:31 EDT 2005
-   - jettero fixed a STUPID bug in print_response (aka USERID)
-
-0.55:  Fri Dec 31 17:26:42 EST 2004
-   - jettero found out the identd is supposed to stay open after a lookup
-
-0.54:  Fri Dec 31 15:00:05 EST 2004
-   - jettero made the documentation about a hundred times better
-
-0.21:  Thu Dec 30 15:28:49 EST 2004
-   - jettero technically added documentation...
-
-0.06:  Thu Dec 30 14:59:23 EST 2004
-   - jettero wrote another test to show that it can do lookups
-
-0.05:  Thu Dec 30 14:12:58 EST 2004
-   - jettero wrote a test to check the error messages
-
-0.04:  Thu Dec 30 10:50:57 EST 2004
-   - jettero did some tests and believe this thing works
-
-0.03:  Thu Dec 30 09:10:46 EST 2004
-   - jettero added a default lookup routine
-
-0.02:  Thu Dec 30 08:15:48 EST 2004
-   - jettero added a nifty error printing routine
-
-0.01:  Wed Dec 29 09:54:39 EST 2004
-   - jettero inherited Net::Server and an ini-conf reader. Amazing!
+   - removed the strange config reader and re-exposed new() from
+     Net::Server
