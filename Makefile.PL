@@ -2,8 +2,10 @@
 
 use ExtUtils::MakeMaker;
 
-die "this module relies heavily on /proc/net/tcp (probably loonix only)\n"
-    unless -r "/proc/net/tcp";
+unless( -r "/proc/net/tcp" ) {
+    exit 0 if $ENV{AUTOMATED_TESTING};
+    die "this module relies heavily on /proc/net/tcp (probably loonix only)\n";
+}
 
 WriteMakefile(
     NAME         => 'Net::IdentServer',

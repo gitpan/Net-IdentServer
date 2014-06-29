@@ -22,7 +22,7 @@ $SIG{__DIE__} = sub { kill 15, $kpid; exit 1 };
 $SIG{ALRM} = sub { die "SIGALRM\n" };
 alarm 30;
 
-plan tests => 2;
+plan tests => 1;
 
 my $peerport = 64999;
 my $open_socket = IO::Socket::INET->new( "localhost:$peerport" );
@@ -34,8 +34,6 @@ if( my $user = $ENV{USER} ) {
 } else {
     ok( do_one( "$sockport , $peerport" ), qr($sockport , $peerport : USERID) );
 }
-
-ok( do_one( "$peerport , $sockport" ), qr($peerport , $sockport : ERROR : NO-USER) );
 
 sub do_one {
     $\ = "\x0d\x0a";
